@@ -6,7 +6,7 @@
     <title>Carta de Sabores - Heladería</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts para mantener la tipografía elegante de tu imagen -->
+    <!-- Google Fonts para mantener la tipografía elegante -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -40,7 +40,6 @@
             background-color: #F4EDE2;
             box-shadow: 0 15px 35px rgba(66, 43, 29, 0.08);
         }
-        /* Doble borde elegante igual al diseño original */
         .outer-border {
             border: 2px solid #422B1D;
             border-radius: 22px;
@@ -49,21 +48,20 @@
             border: 1px solid #CBB8A3;
             border-radius: 17px;
         }
-        /* Transiciones suaves para los estados */
         .flavor-row {
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
         }
     </style>
 </head>
 <body class="min-h-screen py-6 px-3 sm:py-10 sm:px-6 flex flex-col items-center justify-center font-sans">
 
-    <!-- Barra discreta de Administrador (solo visible cuando está logueado el dueño) -->
+    <!-- Barra de Administrador (visible solo cuando iniciás sesión) -->
     <div id="admin-banner" class="hidden w-full max-w-4xl mb-4 bg-espresso text-cream px-4 py-3 rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2 text-sm">
         <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>
             <span class="font-medium">Modo Dueño Activo: Tocá cada sabor para marcar si hay stock.</span>
         </div>
-        <button id="logout-btn" class="bg-cream/20 hover:bg-cream/30 text-cream px-3 py-1 rounded-lg text-xs uppercase tracking-wider transition cursor-pointer">
+        <button id="logout-btn" type="button" class="bg-cream/20 hover:bg-cream/30 text-cream px-3 py-1 rounded-lg text-xs uppercase tracking-wider transition cursor-pointer">
             Salir de Edición
         </button>
     </div>
@@ -92,13 +90,8 @@
                 </div>
             </header>
 
-            <!-- Estado de carga -->
-            <div id="loading-state" class="text-center py-12 text-taupe text-sm tracking-widest uppercase">
-                Cargando sabores disponibles...
-            </div>
-
             <!-- Columnas de Sabores -->
-            <div id="menu-columns" class="hidden grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 relative">
+            <div id="menu-columns" class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 relative">
                 
                 <!-- Línea divisoria vertical en pantallas medianas/grandes -->
                 <div class="hidden md:block absolute left-1/2 top-2 bottom-2 w-[1px] bg-goldline/60 -translate-x-1/2"></div>
@@ -108,9 +101,7 @@
                     <h2 class="font-serif italic text-2xl sm:text-3xl text-taupe border-b border-goldline pb-2 mb-4">
                         Clásicos y frutales
                     </h2>
-                    <ul id="list-clasicos" class="divide-y divide-goldline/40">
-                        <!-- Los items se generan dinámicamente -->
-                    </ul>
+                    <ul id="list-clasicos" class="divide-y divide-goldline/40"></ul>
                 </section>
 
                 <!-- Columna 2: Especiales y cremosos -->
@@ -118,9 +109,7 @@
                     <h2 class="font-serif italic text-2xl sm:text-3xl text-taupe border-b border-goldline pb-2 mb-4">
                         Especiales y cremosos
                     </h2>
-                    <ul id="list-especiales" class="divide-y divide-goldline/40">
-                        <!-- Los items se generan dinámicamente -->
-                    </ul>
+                    <ul id="list-especiales" class="divide-y divide-goldline/40"></ul>
                 </section>
             </div>
 
@@ -143,7 +132,7 @@
 
     <!-- Botón discreto al pie para acceso del dueño -->
     <div class="mt-6 text-center">
-        <button id="open-login-btn" class="text-xs text-taupe/70 hover:text-espresso transition flex items-center gap-1.5 mx-auto py-2 px-3 rounded-lg cursor-pointer">
+        <button id="open-login-btn" type="button" class="text-xs text-taupe/70 hover:text-espresso transition flex items-center gap-1.5 mx-auto py-2 px-3 rounded-lg cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -186,12 +175,7 @@
         Actualizado
     </div>
 
-    <!-- Lógica de Aplicación y Sincronización en Tiempo Real -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <script>
         // ==========================================
         // CONFIGURACIÓN DE CONTRASEÑA DEL DUEÑO
         // Podés cambiar '1234' por la clave que prefieras
@@ -246,15 +230,9 @@
 
         // Estado de la aplicación
         let isAdmin = false;
-        let ownerUid = null;
         let availabilityMap = {};
-        let db = null;
-        let stockDocRef = null;
-        let currentUser = null;
 
         // Referencias DOM
-        const loadingStateEl = document.getElementById('loading-state');
-        const menuColumnsEl = document.getElementById('menu-columns');
         const listClasicosEl = document.getElementById('list-clasicos');
         const listEspecialesEl = document.getElementById('list-especiales');
         const adminBannerEl = document.getElementById('admin-banner');
@@ -275,19 +253,38 @@
             clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => {
                 toastEl.classList.add('opacity-0');
-            }, 2500);
+            }, 2200);
         }
 
-        // Generar mapa inicial donde todos los sabores están disponibles por defecto
-        function getDefaultAvailability() {
-            const map = {};
+        // Cargar estado guardado o iniciar todos disponibles
+        function loadAvailability() {
+            const defaultMap = {};
             [...SABORES_CLASICOS, ...SABORES_ESPECIALES].forEach(s => {
-                map[s.id] = true;
+                defaultMap[s.id] = true;
             });
-            return map;
+
+            try {
+                const saved = localStorage.getItem('heladeria_sabores_stock');
+                if (saved) {
+                    availabilityMap = { ...defaultMap, ...JSON.parse(saved) };
+                } else {
+                    availabilityMap = defaultMap;
+                }
+            } catch (e) {
+                availabilityMap = defaultMap;
+            }
         }
 
-        // Renderizar una lista de sabores (Clientes = solo lectura, Dueño = interactivo)
+        // Guardar estado en localStorage
+        function saveAvailability() {
+            try {
+                localStorage.setItem('heladeria_sabores_stock', JSON.stringify(availabilityMap));
+            } catch (e) {
+                console.error('No se pudo guardar en el navegador:', e);
+            }
+        }
+
+        // Renderizar una lista de sabores
         function renderFlavorList(container, flavors) {
             container.innerHTML = '';
 
@@ -296,7 +293,7 @@
                 const li = document.createElement('li');
                 
                 li.className = `flavor-row py-2.5 px-2 flex items-center justify-between gap-3 rounded-lg ${
-                    isAdmin ? 'cursor-pointer hover:bg-espresso/5 select-none' : ''
+                    isAdmin ? 'cursor-pointer hover:bg-espresso/5 active:bg-espresso/10 select-none' : ''
                 }`;
 
                 // Parte izquierda: punto decorativo + nombre del sabor
@@ -320,7 +317,7 @@
                 leftDiv.appendChild(nameSpan);
                 li.appendChild(leftDiv);
 
-                // Parte derecha: Switch interactivo si es el dueño, o etiqueta discreta "Sin stock" para clientes
+                // Parte derecha: Switch interactivo si es el dueño, o etiqueta "Sin stock" para clientes
                 if (isAdmin) {
                     const toggleWrapper = document.createElement('div');
                     toggleWrapper.className = 'flex items-center gap-2 shrink-0';
@@ -346,12 +343,11 @@
                     toggleWrapper.appendChild(switchPill);
                     li.appendChild(toggleWrapper);
 
-                    // Permitir hacer clic en toda la fila para cambiar el estado
+                    // Evento táctil y de clic para cambiar disponibilidad
                     li.addEventListener('click', () => {
-                        toggleFlavorAvailability(flavor.id, !isAvailable);
+                        toggleFlavorAvailability(flavor.id);
                     });
                 } else if (!isAvailable) {
-                    // Vista cliente cuando el sabor NO está disponible
                     const badge = document.createElement('span');
                     badge.className = 'text-[10px] uppercase tracking-widest text-unavailable border border-unavailable/40 px-2 py-0.5 rounded-full shrink-0';
                     badge.textContent = 'Sin stock';
@@ -362,94 +358,42 @@
             });
         }
 
-        // Actualizar toda la vista de la carta
+        // Actualizar toda la carta en pantalla
         function renderMenu() {
             renderFlavorList(listClasicosEl, SABORES_CLASICOS);
             renderFlavorList(listEspecialesEl, SABORES_ESPECIALES);
-            loadingStateEl.classList.add('hidden');
-            menuColumnsEl.classList.remove('hidden');
         }
 
-        // Guardar cambio en la base de datos en tiempo real
-        async function toggleFlavorAvailability(flavorId, newState) {
-            if (!isAdmin || !currentUser || !stockDocRef) return;
-            if (ownerUid && ownerUid !== currentUser.uid) {
-                showToast('Este dispositivo no tiene permiso de edición');
-                return;
-            }
-
-            // Actualización optimista inmediata en pantalla
+        // Alternar disponibilidad de un sabor
+        function toggleFlavorAvailability(flavorId) {
+            if (!isAdmin) return;
+            const currentState = availabilityMap[flavorId] !== false;
+            const newState = !currentState;
+            
             availabilityMap[flavorId] = newState;
+            saveAvailability();
             renderMenu();
-
-            try {
-                await setDoc(stockDocRef, {
-                    ownerUid: currentUser.uid,
-                    sabores: availabilityMap,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-                showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
-            } catch (error) {
-                console.error("Error al actualizar el estado:", error);
-                showToast('Error al guardar cambio');
-            }
+            showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
         }
 
-        // Inicialización de Firebase para que todos los usuarios vean los cambios en vivo
-        async function initRealtimeMenu() {
-            availabilityMap = getDefaultAvailability();
-
-            try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'heladeria-menu-digital';
-                const firebaseConfig = JSON.parse(__firebase_config);
-
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                db = getFirestore(app);
-
-                // Autenticación obligatoria antes de consultar
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
-                    currentUser = cred.user;
-                } else {
-                    const cred = await signInAnonymously(auth);
-                    currentUser = cred.user;
-                }
-
-                if (!currentUser) return;
-
-                // Ruta pública estricta para que los clientes lean el estado en tiempo real
-                stockDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'carta_heladeria', 'estado_actual');
-
-                // Escuchar cambios en vivo
-                onSnapshot(stockDocRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.data();
-                        if (data && data.ownerUid) {
-                            ownerUid = data.ownerUid;
-                        }
-                        if (data && data.sabores) {
-                            availabilityMap = { ...getDefaultAvailability(), ...data.sabores };
-                        }
-                    } else {
-                        setDoc(stockDocRef, { sabores: availabilityMap }).catch(() => {});
-                    }
-                    renderMenu();
-                }, (error) => {
-                    console.error("Error escuchando disponibilidad:", error);
-                    renderMenu();
-                });
-
-            } catch (err) {
-                console.error("Error de inicialización:", err);
-                renderMenu();
+        // Activar modo edición en la interfaz
+        function setAdminMode(active) {
+            isAdmin = active;
+            if (active) {
+                adminBannerEl.classList.remove('hidden');
+                openLoginBtn.classList.add('hidden');
+                localStorage.setItem('heladeria_admin_activo', 'true');
+            } else {
+                adminBannerEl.classList.add('hidden');
+                openLoginBtn.classList.remove('hidden');
+                localStorage.removeItem('heladeria_admin_activo');
             }
+            renderMenu();
         }
 
         // Eventos del Modal de Acceso Dueño
         openLoginBtn.addEventListener('click', () => {
             loginErrorEl.classList.add('hidden');
-            loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
             adminPinInput.value = '';
             loginModal.classList.remove('hidden');
             loginModal.classList.add('flex');
@@ -468,59 +412,34 @@
             }
         });
 
-        loginForm.addEventListener('submit', async (e) => {
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const enteredPin = adminPinInput.value.trim();
 
             if (enteredPin !== CLAVE_DUENO) {
-                loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
                 loginErrorEl.classList.remove('hidden');
                 adminPinInput.value = '';
                 adminPinInput.focus();
                 return;
             }
 
-            // Verificar y vincular este dispositivo como el dueño único autorizado
-            if (currentUser && stockDocRef) {
-                try {
-                    const snap = await getDoc(stockDocRef);
-                    const data = snap.exists() ? snap.data() : {};
-
-                    if (data.ownerUid && data.ownerUid !== currentUser.uid) {
-                        loginErrorEl.textContent = 'Acceso denegado: este menú ya está vinculado al dispositivo del dueño.';
-                        loginErrorEl.classList.remove('hidden');
-                        return;
-                    }
-
-                    // Registrar este dispositivo como el dueño oficial si aún no había uno
-                    if (!data.ownerUid) {
-                        ownerUid = currentUser.uid;
-                        await setDoc(stockDocRef, { ownerUid: currentUser.uid, sabores: availabilityMap }, { merge: true });
-                    }
-                } catch (err) {
-                    console.error("Error verificando dueño:", err);
-                }
-            }
-
-            isAdmin = true;
             loginModal.classList.add('hidden');
             loginModal.classList.remove('flex');
-            adminBannerEl.classList.remove('hidden');
-            openLoginBtn.classList.add('hidden');
-            renderMenu();
-            showToast('Modo edición activado en tu dispositivo');
+            setAdminMode(true);
+            showToast('Modo edición activado');
         });
 
         logoutBtn.addEventListener('click', () => {
-            isAdmin = false;
-            adminBannerEl.classList.add('hidden');
-            openLoginBtn.classList.remove('hidden');
-            renderMenu();
+            setAdminMode(false);
             showToast('Volviste a la vista de cliente');
         });
 
-        // Arrancar aplicación
-        window.addEventListener('DOMContentLoaded', initRealtimeMenu);
+        // Inicializar al cargar la página
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAvailability();
+            const wasAdmin = localStorage.getItem('heladeria_admin_activo') === 'true';
+            setAdminMode(wasAdmin);
+        });
     </script>
 </body>
 </html>
