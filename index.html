@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carta de Sabores - Heladería</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts para mantener la tipografía elegante de tu imagen -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cream: '#F4EDE2',
+                        espresso: '#422B1D',
+                        taupe: '#9C826B',
+                        goldline: '#CBB8A3',
+                        available: '#3D6B4C',
+                        unavailable: '#B5A597'
+                    },
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+                        sans: ['"Montserrat"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #EAE0D2;
+            color: #422B1D;
+        }
+        .menu-card {
+            background-color: #F4EDE2;
+            box-shadow: 0 15px 35px rgba(66, 43, 29, 0.08);
+        }
+        /* Doble borde elegante igual al diseño original */
+        .outer-border {
+            border: 2px solid #422B1D;
+            border-radius: 22px;
+        }
+        .inner-border {
+            border: 1px solid #CBB8A3;
+            border-radius: 17px;
+        }
+        /* Transiciones suaves para los estados */
+        .flavor-row {
+            transition: all 0.25s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-6 px-3 sm:py-10 sm:px-6 flex flex-col items-center justify-center font-sans">
+
+    <!-- Barra discreta de Administrador (solo visible cuando está logueado el dueño) -->
+    <div id="admin-banner" class="hidden w-full max-w-4xl mb-4 bg-espresso text-cream px-4 py-3 rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>
+            <span class="font-medium">Modo Dueño Activo: Tocá cada sabor para marcar si hay stock.</span>
+        </div>
+        <button id="logout-btn" class="bg-cream/20 hover:bg-cream/30 text-cream px-3 py-1 rounded-lg text-xs uppercase tracking-wider transition cursor-pointer">
+            Salir de Edición
+        </button>
+    </div>
+
+    <!-- Contenedor Principal de la Carta -->
+    <main class="menu-card outer-border w-full max-w-4xl p-2 sm:p-3 relative">
+        <div class="inner-border px-5 py-8 sm:px-12 sm:py-12">
+            
+            <!-- Encabezado -->
+            <header class="text-center mb-10">
+                <p class="text-xs sm:text-sm uppercase tracking-[0.25em] text-taupe font-medium mb-2">
+                    HELADERÍA
+                </p>
+                <h1 class="font-serif italic text-5xl sm:text-6xl md:text-7xl text-espresso font-normal tracking-tight mb-3">
+                    Carta de sabores
+                </h1>
+                <p class="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-taupe mb-6">
+                    UNA VARIEDAD PARA DISFRUTAR
+                </p>
+                
+                <!-- Divisor ornamental -->
+                <div class="flex items-center justify-center gap-4 max-w-md mx-auto">
+                    <div class="h-[1px] bg-goldline flex-1"></div>
+                    <div class="w-2 h-2 rounded-full bg-espresso"></div>
+                    <div class="h-[1px] bg-goldline flex-1"></div>
+                </div>
+            </header>
+
+            <!-- Estado de carga -->
+            <div id="loading-state" class="text-center py-12 text-taupe text-sm tracking-widest uppercase">
+                Cargando sabores disponibles...
+            </div>
+
+            <!-- Columnas de Sabores -->
+            <div id="menu-columns" class="hidden grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 relative">
+                
+                <!-- Línea divisoria vertical en pantallas medianas/grandes -->
+                <div class="hidden md:block absolute left-1/2 top-2 bottom-2 w-[1px] bg-goldline/60 -translate-x-1/2"></div>
+
+                <!-- Columna 1: Clásicos y frutales -->
+                <section>
+                    <h2 class="font-serif italic text-2xl sm:text-3xl text-taupe border-b border-goldline pb-2 mb-4">
+                        Clásicos y frutales
+                    </h2>
+                    <ul id="list-clasicos" class="divide-y divide-goldline/40">
+                        <!-- Los items se generan dinámicamente -->
+                    </ul>
+                </section>
+
+                <!-- Columna 2: Especiales y cremosos -->
+                <section>
+                    <h2 class="font-serif italic text-2xl sm:text-3xl text-taupe border-b border-goldline pb-2 mb-4">
+                        Especiales y cremosos
+                    </h2>
+                    <ul id="list-especiales" class="divide-y divide-goldline/40">
+                        <!-- Los items se generan dinámicamente -->
+                    </ul>
+                </section>
+            </div>
+
+            <!-- Pie de la Carta -->
+            <footer class="mt-12 pt-4 text-center">
+                <div class="flex items-center justify-center gap-4 max-w-lg mx-auto mb-3">
+                    <div class="h-[1px] bg-goldline flex-1"></div>
+                    <p class="font-serif italic text-xl sm:text-2xl text-taupe px-2">
+                        Encontrá tu sabor favorito
+                    </p>
+                    <div class="h-[1px] bg-goldline flex-1"></div>
+                </div>
+                <p class="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-taupe">
+                    SABOR &nbsp;·&nbsp; CALIDAD &nbsp;·&nbsp; DISFRUTE
+                </p>
+            </footer>
+
+        </div>
+    </main>
+
+    <!-- Botón discreto al pie para acceso del dueño -->
+    <div class="mt-6 text-center">
+        <button id="open-login-btn" class="text-xs text-taupe/70 hover:text-espresso transition flex items-center gap-1.5 mx-auto py-2 px-3 rounded-lg cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span>Acceso Dueño</span>
+        </button>
+    </div>
+
+    <!-- Modal de Inicio de Sesión -->
+    <div id="login-modal" class="fixed inset-0 bg-espresso/60 backdrop-blur-xs hidden items-center justify-center p-4 z-50">
+        <div class="bg-cream border-2 border-espresso rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <h3 class="font-serif italic text-3xl text-espresso mb-1">Control de Stock</h3>
+            <p class="text-xs text-taupe mb-5">Ingresá tu clave para editar los sabores disponibles.</p>
+            
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="admin-pin" class="block text-xs uppercase tracking-wider text-espresso font-medium mb-1.5">Contraseña</label>
+                    <input type="password" id="admin-pin" placeholder="••••" required
+                        class="w-full px-4 py-2.5 rounded-xl bg-white/80 border border-goldline text-espresso focus:outline-none focus:border-espresso text-center tracking-widest text-lg">
+                </div>
+                
+                <p id="login-error" class="text-xs text-red-700 hidden text-center font-medium">
+                    Contraseña incorrecta. Intentá nuevamente.
+                </p>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="cancel-login-btn" class="flex-1 py-2.5 px-4 rounded-xl border border-goldline text-taupe hover:text-espresso text-sm font-medium transition cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 px-4 rounded-xl bg-espresso text-cream hover:bg-espresso/90 text-sm font-medium transition cursor-pointer">
+                        Ingresar
+                    </button>
+                </div>
+            </form>
+            <p class="text-[11px] text-taupe/80 text-center mt-4">Clave por defecto: <strong>1234</strong></p>
+        </div>
+    </div>
+
+    <!-- Mensaje flotante de confirmación -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-espresso text-cream text-xs px-4 py-2.5 rounded-xl shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-40">
+        Actualizado
+    </div>
+
+    <!-- Lógica de Aplicación y Sincronización en Tiempo Real -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // CONFIGURACIÓN DE CONTRASEÑA DEL DUEÑO
+        // Podés cambiar '1234' por la clave que prefieras
+        // ==========================================
+        const CLAVE_DUENO = "1234";
+
+        // Listado exacto extraído de tu imagen
+        const SABORES_CLASICOS = [
+            { id: 'limon', nombre: 'Limón' },
+            { id: 'anana', nombre: 'Ananá' },
+            { id: 'frutilla_agua', nombre: 'Frutilla al agua' },
+            { id: 'durazno', nombre: 'Durazno' },
+            { id: 'limon_reina', nombre: 'Limón a la reina' },
+            { id: 'banana', nombre: 'Banana' },
+            { id: 'multisabor', nombre: 'Multisabor' },
+            { id: 'granizado', nombre: 'Granizado' },
+            { id: 'vainilla', nombre: 'Vainilla' },
+            { id: 'americana', nombre: 'Americana' },
+            { id: 'chocolate', nombre: 'Chocolate' },
+            { id: 'crema_cielo', nombre: 'Crema cielo' },
+            { id: 'frutilla_crema', nombre: 'Frutilla a la crema' },
+            { id: 'chocolate_blanco', nombre: 'Chocolate blanco' },
+            { id: 'super_chocolate', nombre: 'Súper chocolate' },
+            { id: 'chocolate_pasas', nombre: 'Chocolate c/pasas' },
+            { id: 'chocolate_almendras', nombre: 'Chocolate calimendras' },
+            { id: 'dulce_leche', nombre: 'Dulce de leche' },
+            { id: 'dulce_leche_granizado', nombre: 'Dulce de leche granizado' },
+            { id: 'dulce_leche_cloreo', nombre: 'Dulce de leche cloreo' }
+        ];
+
+        const SABORES_ESPECIALES = [
+            { id: 'chocolate_milka', nombre: 'Chocolate Milka mousse' },
+            { id: 'crema_flan', nombre: 'Crema flan' },
+            { id: 'crema_cereza', nombre: 'Crema cereza' },
+            { id: 'banana_split', nombre: 'Banana split' },
+            { id: 'sambayon', nombre: 'Sambayón' },
+            { id: 'tramontana', nombre: 'Tramontana' },
+            { id: 'mantecol', nombre: 'Mantecol' },
+            { id: 'tiramisu', nombre: 'Tiramisú' },
+            { id: 'mascarpone', nombre: 'Mascarpone' },
+            { id: 'crema_oreo', nombre: 'Crema Oreo' },
+            { id: 'menta_granizada', nombre: 'Menta granizada' },
+            { id: 'bananita_dolca', nombre: 'Bananita dolca' },
+            { id: 'frutos_patagonicos', nombre: 'Frutos patagónicos' },
+            { id: 'chocolate_shot', nombre: 'Chocolate shot' },
+            { id: 'dulce_leche_nuez', nombre: 'Dulce de leche c/nuez' },
+            { id: 'super_dulce_leche', nombre: 'Súper dulce de leche' },
+            { id: 'dulce_leche_seitu', nombre: 'Dulce de leche Seitú' },
+            { id: 'pistacho', nombre: 'Pistacho' },
+            { id: 'chocolate_dubai', nombre: 'Chocolate Dubai' }
+        ];
+
+        // Estado de la aplicación
+        let isAdmin = false;
+        let ownerUid = null;
+        let availabilityMap = {};
+        let db = null;
+        let stockDocRef = null;
+        let currentUser = null;
+
+        // Referencias DOM
+        const loadingStateEl = document.getElementById('loading-state');
+        const menuColumnsEl = document.getElementById('menu-columns');
+        const listClasicosEl = document.getElementById('list-clasicos');
+        const listEspecialesEl = document.getElementById('list-especiales');
+        const adminBannerEl = document.getElementById('admin-banner');
+        const openLoginBtn = document.getElementById('open-login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginModal = document.getElementById('login-modal');
+        const loginForm = document.getElementById('login-form');
+        const adminPinInput = document.getElementById('admin-pin');
+        const loginErrorEl = document.getElementById('login-error');
+        const cancelLoginBtn = document.getElementById('cancel-login-btn');
+        const toastEl = document.getElementById('toast');
+
+        // Mostrar notificación flotante
+        let toastTimeout;
+        function showToast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.remove('opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toastEl.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        // Generar mapa inicial donde todos los sabores están disponibles por defecto
+        function getDefaultAvailability() {
+            const map = {};
+            [...SABORES_CLASICOS, ...SABORES_ESPECIALES].forEach(s => {
+                map[s.id] = true;
+            });
+            return map;
+        }
+
+        // Renderizar una lista de sabores (Clientes = solo lectura, Dueño = interactivo)
+        function renderFlavorList(container, flavors) {
+            container.innerHTML = '';
+
+            flavors.forEach(flavor => {
+                const isAvailable = availabilityMap[flavor.id] !== false;
+                const li = document.createElement('li');
+                
+                li.className = `flavor-row py-2.5 px-2 flex items-center justify-between gap-3 rounded-lg ${
+                    isAdmin ? 'cursor-pointer hover:bg-espresso/5 select-none' : ''
+                }`;
+
+                // Parte izquierda: punto decorativo + nombre del sabor
+                const leftDiv = document.createElement('div');
+                leftDiv.className = 'flex items-center gap-3 min-w-0';
+
+                const dot = document.createElement('span');
+                dot.className = `w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+                    isAvailable ? 'bg-taupe' : 'bg-unavailable/50'
+                }`;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = flavor.nombre;
+                nameSpan.className = `text-base sm:text-[17px] tracking-wide truncate transition-all ${
+                    isAvailable
+                        ? 'text-espresso font-normal'
+                        : 'text-unavailable line-through decoration-unavailable/80'
+                }`;
+
+                leftDiv.appendChild(dot);
+                leftDiv.appendChild(nameSpan);
+                li.appendChild(leftDiv);
+
+                // Parte derecha: Switch interactivo si es el dueño, o etiqueta discreta "Sin stock" para clientes
+                if (isAdmin) {
+                    const toggleWrapper = document.createElement('div');
+                    toggleWrapper.className = 'flex items-center gap-2 shrink-0';
+
+                    const statusText = document.createElement('span');
+                    statusText.className = `text-[11px] uppercase tracking-wider font-medium ${
+                        isAvailable ? 'text-available' : 'text-unavailable'
+                    }`;
+                    statusText.textContent = isAvailable ? 'Hay' : 'No hay';
+
+                    const switchPill = document.createElement('div');
+                    switchPill.className = `w-10 h-5 rounded-full p-0.5 transition-colors duration-200 flex items-center ${
+                        isAvailable ? 'bg-available' : 'bg-goldline'
+                    }`;
+
+                    const switchKnob = document.createElement('div');
+                    switchKnob.className = `w-4 h-4 rounded-full bg-cream shadow-xs transform transition-transform duration-200 ${
+                        isAvailable ? 'translate-x-5' : 'translate-x-0'
+                    }`;
+
+                    switchPill.appendChild(switchKnob);
+                    toggleWrapper.appendChild(statusText);
+                    toggleWrapper.appendChild(switchPill);
+                    li.appendChild(toggleWrapper);
+
+                    // Permitir hacer clic en toda la fila para cambiar el estado
+                    li.addEventListener('click', () => {
+                        toggleFlavorAvailability(flavor.id, !isAvailable);
+                    });
+                } else if (!isAvailable) {
+                    // Vista cliente cuando el sabor NO está disponible
+                    const badge = document.createElement('span');
+                    badge.className = 'text-[10px] uppercase tracking-widest text-unavailable border border-unavailable/40 px-2 py-0.5 rounded-full shrink-0';
+                    badge.textContent = 'Sin stock';
+                    li.appendChild(badge);
+                }
+
+                container.appendChild(li);
+            });
+        }
+
+        // Actualizar toda la vista de la carta
+        function renderMenu() {
+            renderFlavorList(listClasicosEl, SABORES_CLASICOS);
+            renderFlavorList(listEspecialesEl, SABORES_ESPECIALES);
+            loadingStateEl.classList.add('hidden');
+            menuColumnsEl.classList.remove('hidden');
+        }
+
+        // Guardar cambio en la base de datos en tiempo real
+        async function toggleFlavorAvailability(flavorId, newState) {
+            if (!isAdmin || !currentUser || !stockDocRef) return;
+            if (ownerUid && ownerUid !== currentUser.uid) {
+                showToast('Este dispositivo no tiene permiso de edición');
+                return;
+            }
+
+            // Actualización optimista inmediata en pantalla
+            availabilityMap[flavorId] = newState;
+            renderMenu();
+
+            try {
+                await setDoc(stockDocRef, {
+                    ownerUid: currentUser.uid,
+                    sabores: availabilityMap,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
+            } catch (error) {
+                console.error("Error al actualizar el estado:", error);
+                showToast('Error al guardar cambio');
+            }
+        }
+
+        // Inicialización de Firebase para que todos los usuarios vean los cambios en vivo
+        async function initRealtimeMenu() {
+            availabilityMap = getDefaultAvailability();
+
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'heladeria-menu-digital';
+                const firebaseConfig = JSON.parse(__firebase_config);
+
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Autenticación obligatoria antes de consultar
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
+
+                if (!currentUser) return;
+
+                // Ruta pública estricta para que los clientes lean el estado en tiempo real
+                stockDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'carta_heladeria', 'estado_actual');
+
+                // Escuchar cambios en vivo
+                onSnapshot(stockDocRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        if (data && data.ownerUid) {
+                            ownerUid = data.ownerUid;
+                        }
+                        if (data && data.sabores) {
+                            availabilityMap = { ...getDefaultAvailability(), ...data.sabores };
+                        }
+                    } else {
+                        setDoc(stockDocRef, { sabores: availabilityMap }).catch(() => {});
+                    }
+                    renderMenu();
+                }, (error) => {
+                    console.error("Error escuchando disponibilidad:", error);
+                    renderMenu();
+                });
+
+            } catch (err) {
+                console.error("Error de inicialización:", err);
+                renderMenu();
+            }
+        }
+
+        // Eventos del Modal de Acceso Dueño
+        openLoginBtn.addEventListener('click', () => {
+            loginErrorEl.classList.add('hidden');
+            loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
+            adminPinInput.value = '';
+            loginModal.classList.remove('hidden');
+            loginModal.classList.add('flex');
+            setTimeout(() => adminPinInput.focus(), 100);
+        });
+
+        cancelLoginBtn.addEventListener('click', () => {
+            loginModal.classList.add('hidden');
+            loginModal.classList.remove('flex');
+        });
+
+        loginModal.addEventListener('click', (e) => {
+            if (e.target === loginModal) {
+                loginModal.classList.add('hidden');
+                loginModal.classList.remove('flex');
+            }
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const enteredPin = adminPinInput.value.trim();
+
+            if (enteredPin !== CLAVE_DUENO) {
+                loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
+                loginErrorEl.classList.remove('hidden');
+                adminPinInput.value = '';
+                adminPinInput.focus();
+                return;
+            }
+
+            // Verificar y vincular este dispositivo como el dueño único autorizado
+            if (currentUser && stockDocRef) {
+                try {
+                    const snap = await getDoc(stockDocRef);
+                    const data = snap.exists() ? snap.data() : {};
+
+                    if (data.ownerUid && data.ownerUid !== currentUser.uid) {
+                        loginErrorEl.textContent = 'Acceso denegado: este menú ya está vinculado al dispositivo del dueño.';
+                        loginErrorEl.classList.remove('hidden');
+                        return;
+                    }
+
+                    // Registrar este dispositivo como el dueño oficial si aún no había uno
+                    if (!data.ownerUid) {
+                        ownerUid = currentUser.uid;
+                        await setDoc(stockDocRef, { ownerUid: currentUser.uid, sabores: availabilityMap }, { merge: true });
+                    }
+                } catch (err) {
+                    console.error("Error verificando dueño:", err);
+                }
+            }
+
+            isAdmin = true;
+            loginModal.classList.add('hidden');
+            loginModal.classList.remove('flex');
+            adminBannerEl.classList.remove('hidden');
+            openLoginBtn.classList.add('hidden');
+            renderMenu();
+            showToast('Modo edición activado en tu dispositivo');
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            isAdmin = false;
+            adminBannerEl.classList.add('hidden');
+            openLoginBtn.classList.remove('hidden');
+            renderMenu();
+            showToast('Volviste a la vista de cliente');
+        });
+
+        // Arrancar aplicación
+        window.addEventListener('DOMContentLoaded', initRealtimeMenu);
+    </script>
+</body>
+</html>
