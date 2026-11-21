@@ -78,7 +78,9 @@
                 <h1 class="font-serif italic text-5xl sm:text-6xl md:text-7xl text-espresso font-normal tracking-tight mb-3">
                     Carta de sabores
                 </h1>
-                
+                <p class="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-taupe mb-6">
+                    UNA VARIEDAD PARA DISFRUTAR
+                </p>
                 
                 <!-- Divisor ornamental -->
                 <div class="flex items-center justify-center gap-4 max-w-md mx-auto">
@@ -115,11 +117,13 @@
             <footer class="mt-12 pt-4 text-center">
                 <div class="flex items-center justify-center gap-4 max-w-lg mx-auto mb-3">
                     <div class="h-[1px] bg-goldline flex-1"></div>
-                    
+                    <p class="font-serif italic text-xl sm:text-2xl text-taupe px-2">
+                        Encontrá tu sabor favorito
+                    </p>
                     <div class="h-[1px] bg-goldline flex-1"></div>
                 </div>
                 <p class="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-taupe">
-                  
+                    SABOR &nbsp;·&nbsp; CALIDAD &nbsp;·&nbsp; DISFRUTE
                 </p>
             </footer>
 
@@ -171,7 +175,11 @@
         Actualizado
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
         // ==========================================
         // CONFIGURACIÓN DE CONTRASEÑA DEL DUEÑO
         // Podés cambiar '1234' por la clave que prefieras
@@ -226,7 +234,16 @@
 
         // Estado de la aplicación
         let isAdmin = false;
+        let currentUser = null;
+        let db = null;
+        let menuDocRef = null;
+        let ownerUid = null;
         let availabilityMap = {};
+
+        // Inicializar valores por defecto (todos disponibles)
+        [...SABORES_CLASICOS, ...SABORES_ESPECIALES].forEach(s => {
+            availabilityMap[s.id] = true;
+        });
 
         // Referencias DOM
         const listClasicosEl = document.getElementById('list-clasicos');
@@ -249,34 +266,72 @@
             clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => {
                 toastEl.classList.add('opacity-0');
-            }, 2200);
+            }, 2500);
         }
 
-        // Cargar estado guardado o iniciar todos disponibles
-        function loadAvailability() {
-            const defaultMap = {};
-            [...SABORES_CLASICOS, ...SABORES_ESPECIALES].forEach(s => {
-                defaultMap[s.id] = true;
-            });
+        // Configurar conexión en tiempo real para todos los dispositivos
+        async function initRealtimeMenu() {
+            renderMenu();
 
             try {
-                const saved = localStorage.getItem('heladeria_sabores_stock');
-                if (saved) {
-                    availabilityMap = { ...defaultMap, ...JSON.parse(saved) };
-                } else {
-                    availabilityMap = defaultMap;
+                // Configuración automática o propia de tu proyecto Firebase
+                const firebaseConfig = typeof __firebase_config !== 'undefined'
+                    ? JSON.parse(__firebase_config)
+                    : {
+                        // Si subís esto a GitHub Pages fuera de esta vista previa,
+                        // pegá aquí las credenciales de tu proyecto gratuito de Firebase:
+                        apiKey: "TU_API_KEY",
+                        authDomain: "TU_PROYECTO.firebaseapp.com",
+                        projectId: "TU_PROYECTO",
+                        storageBucket: "TU_PROYECTO.appspot.com",
+                        messagingSenderId: "000000000000",
+                        appId: "1:000000000000:web:000000000000"
+                    };
+
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "TU_API_KEY") {
+                    return;
                 }
-            } catch (e) {
-                availabilityMap = defaultMap;
-            }
-        }
 
-        // Guardar estado en localStorage
-        function saveAvailability() {
-            try {
-                localStorage.setItem('heladeria_sabores_stock', JSON.stringify(availabilityMap));
-            } catch (e) {
-                console.error('No se pudo guardar en el navegador:', e);
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'heladeria-carta-digital';
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Autenticar antes de consultar la base de datos
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
+
+                if (!currentUser) return;
+
+                // Documento público compartido por todos los dispositivos
+                menuDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'carta_helados', 'estado_sabores');
+
+                // Escuchar cambios en vivo desde cualquier dispositivo
+                onSnapshot(menuDocRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        if (data.sabores) {
+                            availabilityMap = { ...availabilityMap, ...data.sabores };
+                        }
+                        if (data.ownerUid) {
+                            ownerUid = data.ownerUid;
+                        }
+                        // Si otro dispositivo no autorizado tenía abierto el panel, cerrarlo
+                        if (isAdmin && ownerUid && ownerUid !== currentUser.uid) {
+                            setAdminMode(false);
+                        }
+                    }
+                    renderMenu();
+                }, (error) => {
+                    console.error("Error de sincronización en vivo:", error);
+                });
+            } catch (err) {
+                console.error("Error inicializando la conexión en tiempo real:", err);
             }
         }
 
@@ -360,16 +415,32 @@
             renderFlavorList(listEspecialesEl, SABORES_ESPECIALES);
         }
 
-        // Alternar disponibilidad de un sabor
-        function toggleFlavorAvailability(flavorId) {
+        // Alternar disponibilidad de un sabor y guardar en la nube para todos
+        async function toggleFlavorAvailability(flavorId) {
             if (!isAdmin) return;
             const currentState = availabilityMap[flavorId] !== false;
             const newState = !currentState;
             
             availabilityMap[flavorId] = newState;
-            saveAvailability();
             renderMenu();
-            showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
+
+            if (menuDocRef && currentUser) {
+                try {
+                    await setDoc(menuDocRef, {
+                        sabores: availabilityMap,
+                        ownerUid: ownerUid || currentUser.uid,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                    showToast(newState ? 'Disponible en todos los dispositivos' : 'Sin stock en todos los dispositivos');
+                } catch (err) {
+                    console.error("Error al guardar cambio:", err);
+                    availabilityMap[flavorId] = currentState;
+                    renderMenu();
+                    showToast('Error al sincronizar el cambio');
+                }
+            } else {
+                showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
+            }
         }
 
         // Activar modo edición en la interfaz
@@ -378,11 +449,9 @@
             if (active) {
                 adminBannerEl.classList.remove('hidden');
                 openLoginBtn.classList.add('hidden');
-                localStorage.setItem('heladeria_admin_activo', 'true');
             } else {
                 adminBannerEl.classList.add('hidden');
                 openLoginBtn.classList.remove('hidden');
-                localStorage.removeItem('heladeria_admin_activo');
             }
             renderMenu();
         }
@@ -390,6 +459,7 @@
         // Eventos del Modal de Acceso Dueño
         openLoginBtn.addEventListener('click', () => {
             loginErrorEl.classList.add('hidden');
+            loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
             adminPinInput.value = '';
             loginModal.classList.remove('hidden');
             loginModal.classList.add('flex');
@@ -408,15 +478,38 @@
             }
         });
 
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const enteredPin = adminPinInput.value.trim();
 
             if (enteredPin !== CLAVE_DUENO) {
+                loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
                 loginErrorEl.classList.remove('hidden');
                 adminPinInput.value = '';
                 adminPinInput.focus();
                 return;
+            }
+
+            // Verificar que este dispositivo sea el dueño autorizado
+            if (menuDocRef && currentUser) {
+                if (ownerUid && ownerUid !== currentUser.uid) {
+                    loginErrorEl.textContent = 'Acceso denegado: este dispositivo no está autorizado como dueño.';
+                    loginErrorEl.classList.remove('hidden');
+                    return;
+                }
+
+                // Si es la primera vez, vincular este dispositivo como dueño único
+                if (!ownerUid) {
+                    try {
+                        ownerUid = currentUser.uid;
+                        await setDoc(menuDocRef, {
+                            ownerUid: ownerUid,
+                            sabores: availabilityMap
+                        }, { merge: true });
+                    } catch (err) {
+                        console.error("Error al vincular dueño:", err);
+                    }
+                }
             }
 
             loginModal.classList.add('hidden');
@@ -430,12 +523,8 @@
             showToast('Volviste a la vista de cliente');
         });
 
-        // Inicializar al cargar la página
-        window.addEventListener('DOMContentLoaded', () => {
-            loadAvailability();
-            const wasAdmin = localStorage.getItem('heladeria_admin_activo') === 'true';
-            setAdminMode(wasAdmin);
-        });
+        // Iniciar aplicación
+        initRealtimeMenu();
     </script>
 </body>
 </html>
