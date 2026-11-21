@@ -175,18 +175,20 @@
         Actualizado
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // ==========================================
-        // CONFIGURACIÓN DE CONTRASEÑA DEL DUEÑO
-        // Podés cambiar '1234' por la clave que prefieras
-        // ==========================================
+    <script>
+        // =========================================================================
+        // 1. CONTRASEÑA DE DUEÑO (Podés cambiar '1234' por la clave que quieras)
+        // =========================================================================
         const CLAVE_DUENO = "1234";
 
-        // Listado exacto extraído de tu imagen
+        // =========================================================================
+        // 2. CONEXIÓN EN TIEMPO REAL PARA TODOS LOS DISPOSITIVOS (GITHUB PAGES)
+        // Pegá aquí la URL de tu Firebase Realtime Database (termina en .firebaseio.com)
+        // Ejemplo: "https://heladeria-carta-default-rtdb.firebaseio.com"
+        // =========================================================================
+        const FIREBASE_DB_URL = "PEGAR_AQUI_TU_URL_DE_FIREBASE";
+
+        // Listado exacto de sabores
         const SABORES_CLASICOS = [
             { id: 'limon', nombre: 'Limón' },
             { id: 'anana', nombre: 'Ananá' },
@@ -232,18 +234,30 @@
             { id: 'chocolate_dubai', nombre: 'Chocolate Dubai' }
         ];
 
+        // Identificador único de este dispositivo para bloquear ediciones no autorizadas
+        let deviceId = localStorage.getItem('heladeria_device_id');
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            localStorage.setItem('heladeria_device_id', deviceId);
+        }
+
         // Estado de la aplicación
         let isAdmin = false;
-        let currentUser = null;
-        let db = null;
-        let menuDocRef = null;
-        let ownerUid = null;
+        let ownerDeviceId = null;
         let availabilityMap = {};
 
         // Inicializar valores por defecto (todos disponibles)
         [...SABORES_CLASICOS, ...SABORES_ESPECIALES].forEach(s => {
             availabilityMap[s.id] = true;
         });
+
+        // Cargar respaldo local rápido mientras conecta a la nube
+        const cachedLocal = localStorage.getItem('heladeria_cache_sabores');
+        if (cachedLocal) {
+            try {
+                availabilityMap = { ...availabilityMap, ...JSON.parse(cachedLocal) };
+            } catch (e) {}
+        }
 
         // Referencias DOM
         const listClasicosEl = document.getElementById('list-clasicos');
@@ -258,7 +272,6 @@
         const cancelLoginBtn = document.getElementById('cancel-login-btn');
         const toastEl = document.getElementById('toast');
 
-        // Mostrar notificación flotante
         let toastTimeout;
         function showToast(msg) {
             toastEl.textContent = msg;
@@ -269,69 +282,62 @@
             }, 2500);
         }
 
-        // Configurar conexión en tiempo real para todos los dispositivos
-        async function initRealtimeMenu() {
-            renderMenu();
+        function getCleanDbUrl() {
+            if (!FIREBASE_DB_URL || FIREBASE_DB_URL.includes("PEGAR_AQUI")) return null;
+            return FIREBASE_DB_URL.replace(/\/$/, "");
+        }
+
+        // Consultar el estado compartido desde la nube para todos los dispositivos
+        async function fetchCloudState() {
+            const baseUrl = getCleanDbUrl();
+            if (!baseUrl) return;
 
             try {
-                // Configuración automática o propia de tu proyecto Firebase
-                const firebaseConfig = typeof __firebase_config !== 'undefined'
-                    ? JSON.parse(__firebase_config)
-                    : {
-                        // Si subís esto a GitHub Pages fuera de esta vista previa,
-                        // pegá aquí las credenciales de tu proyecto gratuito de Firebase:
-                        apiKey: "TU_API_KEY",
-                        authDomain: "TU_PROYECTO.firebaseapp.com",
-                        projectId: "TU_PROYECTO",
-                        storageBucket: "TU_PROYECTO.appspot.com",
-                        messagingSenderId: "000000000000",
-                        appId: "1:000000000000:web:000000000000"
-                    };
+                const response = await fetch(`${baseUrl}/carta_helados.json?t=${Date.now()}`);
+                if (!response.ok) return;
+                const data = await response.json();
 
-                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "TU_API_KEY") {
-                    return;
-                }
-
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'heladeria-carta-digital';
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                db = getFirestore(app);
-
-                // Autenticar antes de consultar la base de datos
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
-                    currentUser = cred.user;
-                } else {
-                    const cred = await signInAnonymously(auth);
-                    currentUser = cred.user;
-                }
-
-                if (!currentUser) return;
-
-                // Documento público compartido por todos los dispositivos
-                menuDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'carta_helados', 'estado_sabores');
-
-                // Escuchar cambios en vivo desde cualquier dispositivo
-                onSnapshot(menuDocRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.data();
-                        if (data.sabores) {
-                            availabilityMap = { ...availabilityMap, ...data.sabores };
-                        }
-                        if (data.ownerUid) {
-                            ownerUid = data.ownerUid;
-                        }
-                        // Si otro dispositivo no autorizado tenía abierto el panel, cerrarlo
-                        if (isAdmin && ownerUid && ownerUid !== currentUser.uid) {
-                            setAdminMode(false);
-                        }
+                if (data) {
+                    if (data.sabores) {
+                        availabilityMap = { ...availabilityMap, ...data.sabores };
+                        localStorage.setItem('heladeria_cache_sabores', JSON.stringify(availabilityMap));
+                    }
+                    if (data.ownerDeviceId) {
+                        ownerDeviceId = data.ownerDeviceId;
+                    }
+                    if (isAdmin && ownerDeviceId && ownerDeviceId !== deviceId) {
+                        setAdminMode(false);
                     }
                     renderMenu();
-                }, (error) => {
-                    console.error("Error de sincronización en vivo:", error);
-                });
+                }
             } catch (err) {
-                console.error("Error inicializando la conexión en tiempo real:", err);
+                console.error("Error leyendo estado compartido:", err);
+            }
+        }
+
+        // Guardar cambios en la nube para que todos los dispositivos los vean
+        async function saveCloudState() {
+            localStorage.setItem('heladeria_cache_sabores', JSON.stringify(availabilityMap));
+            const baseUrl = getCleanDbUrl();
+            if (!baseUrl) {
+                showToast('Falta configurar FIREBASE_DB_URL para sincronizar');
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${baseUrl}/carta_helados.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sabores: availabilityMap,
+                        ownerDeviceId: ownerDeviceId || deviceId,
+                        updatedAt: Date.now()
+                    })
+                });
+                return response.ok;
+            } catch (err) {
+                console.error("Error guardando en la nube:", err);
+                return false;
             }
         }
 
@@ -347,7 +353,6 @@
                     isAdmin ? 'cursor-pointer hover:bg-espresso/5 active:bg-espresso/10 select-none' : ''
                 }`;
 
-                // Parte izquierda: punto decorativo + nombre del sabor
                 const leftDiv = document.createElement('div');
                 leftDiv.className = 'flex items-center gap-3 min-w-0';
 
@@ -368,7 +373,6 @@
                 leftDiv.appendChild(nameSpan);
                 li.appendChild(leftDiv);
 
-                // Parte derecha: Switch interactivo si es el dueño, o etiqueta "Sin stock" para clientes
                 if (isAdmin) {
                     const toggleWrapper = document.createElement('div');
                     toggleWrapper.className = 'flex items-center gap-2 shrink-0';
@@ -394,7 +398,6 @@
                     toggleWrapper.appendChild(switchPill);
                     li.appendChild(toggleWrapper);
 
-                    // Evento táctil y de clic para cambiar disponibilidad
                     li.addEventListener('click', () => {
                         toggleFlavorAvailability(flavor.id);
                     });
@@ -409,13 +412,12 @@
             });
         }
 
-        // Actualizar toda la carta en pantalla
         function renderMenu() {
             renderFlavorList(listClasicosEl, SABORES_CLASICOS);
             renderFlavorList(listEspecialesEl, SABORES_ESPECIALES);
         }
 
-        // Alternar disponibilidad de un sabor y guardar en la nube para todos
+        // Alternar disponibilidad y sincronizar con todos los dispositivos
         async function toggleFlavorAvailability(flavorId) {
             if (!isAdmin) return;
             const currentState = availabilityMap[flavorId] !== false;
@@ -424,26 +426,12 @@
             availabilityMap[flavorId] = newState;
             renderMenu();
 
-            if (menuDocRef && currentUser) {
-                try {
-                    await setDoc(menuDocRef, {
-                        sabores: availabilityMap,
-                        ownerUid: ownerUid || currentUser.uid,
-                        updatedAt: Date.now()
-                    }, { merge: true });
-                    showToast(newState ? 'Disponible en todos los dispositivos' : 'Sin stock en todos los dispositivos');
-                } catch (err) {
-                    console.error("Error al guardar cambio:", err);
-                    availabilityMap[flavorId] = currentState;
-                    renderMenu();
-                    showToast('Error al sincronizar el cambio');
-                }
-            } else {
-                showToast(newState ? 'Sabor marcado como disponible' : 'Sabor marcado sin stock');
+            const saved = await saveCloudState();
+            if (saved) {
+                showToast(newState ? 'Guardado: Disponible en todos los dispositivos' : 'Guardado: Sin stock en todos los dispositivos');
             }
         }
 
-        // Activar modo edición en la interfaz
         function setAdminMode(active) {
             isAdmin = active;
             if (active) {
@@ -456,7 +444,6 @@
             renderMenu();
         }
 
-        // Eventos del Modal de Acceso Dueño
         openLoginBtn.addEventListener('click', () => {
             loginErrorEl.classList.add('hidden');
             loginErrorEl.textContent = 'Contraseña incorrecta. Intentá nuevamente.';
@@ -490,32 +477,25 @@
                 return;
             }
 
-            // Verificar que este dispositivo sea el dueño autorizado
-            if (menuDocRef && currentUser) {
-                if (ownerUid && ownerUid !== currentUser.uid) {
-                    loginErrorEl.textContent = 'Acceso denegado: este dispositivo no está autorizado como dueño.';
-                    loginErrorEl.classList.remove('hidden');
-                    return;
-                }
+            await fetchCloudState();
 
-                // Si es la primera vez, vincular este dispositivo como dueño único
-                if (!ownerUid) {
-                    try {
-                        ownerUid = currentUser.uid;
-                        await setDoc(menuDocRef, {
-                            ownerUid: ownerUid,
-                            sabores: availabilityMap
-                        }, { merge: true });
-                    } catch (err) {
-                        console.error("Error al vincular dueño:", err);
-                    }
-                }
+            // Bloquear si otro dispositivo ya fue registrado como dueño
+            if (ownerDeviceId && ownerDeviceId !== deviceId) {
+                loginErrorEl.textContent = 'Acceso denegado: este dispositivo no es el dueño autorizado.';
+                loginErrorEl.classList.remove('hidden');
+                return;
+            }
+
+            // Vincular este dispositivo como dueño único si es el primero en entrar
+            if (!ownerDeviceId) {
+                ownerDeviceId = deviceId;
+                await saveCloudState();
             }
 
             loginModal.classList.add('hidden');
             loginModal.classList.remove('flex');
             setAdminMode(true);
-            showToast('Modo edición activado');
+            showToast('Modo Dueño activado');
         });
 
         logoutBtn.addEventListener('click', () => {
@@ -523,8 +503,10 @@
             showToast('Volviste a la vista de cliente');
         });
 
-        // Iniciar aplicación
-        initRealtimeMenu();
+        // Iniciar carga y mantener sincronización automática cada 3 segundos
+        renderMenu();
+        fetchCloudState();
+        setInterval(fetchCloudState, 3000);
     </script>
 </body>
 </html>
